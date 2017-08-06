@@ -53,4 +53,37 @@ inline void cleanup<SDL_Surface>(SDL_Surface *surf){
 	SDL_FreeSurface(surf);
 }
 
+struct SDLWindowDeleter
+{
+	void operator()(SDL_Window* win)
+	{
+		if (win != nullptr)
+		{
+			SDL_DestroyWindow(win);
+		}
+	}
+};
+
+struct SDLRendererDeleter
+{
+	void operator()(SDL_Renderer* ren)
+	{
+		if (ren != nullptr)
+		{
+			SDL_DestroyRenderer(ren);
+		}
+	}
+};
+
+struct SDLTextureDeleter
+{
+	void operator()(SDL_Texture* tex)
+	{
+		if (tex != nullptr)
+		{
+			SDL_DestroyTexture(tex);
+		}
+	}
+};
+
 #endif
