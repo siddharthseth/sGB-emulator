@@ -41,3 +41,8 @@ cmake_install.cmake
 install_manifest.txt
 compile_commands.json
 CTestTestfile.cmake
+
+#Ignore the build, bin, and ROM
+build/
+bin/
+res/roms
