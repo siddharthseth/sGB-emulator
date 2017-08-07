@@ -79,9 +79,24 @@ int main (int argc, char** argv)
 			}
 		}
 
-		sGB.cpuStep();
-		sGB.gpuStep();
-		sGB.interruptStep();
+		bool success = sGB.cpuStep();
+		if (!success)
+		{
+			running = false;;
+		}
+
+		success = sGB.gpuStep();
+		if (!success)
+		{
+			running = false;;
+		}
+
+
+		success = sGB.interruptStep();
+		if (!success)
+		{
+			running = false;;
+		}
 
 		SDL_RenderClear(pRenderer);
 

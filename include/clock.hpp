@@ -8,6 +8,8 @@ class Clock
 		virtual ~Clock();
 
 	private:
+		unsigned int machineCycles;
+		unsigned int clockCycles;
 };
 
 #endif

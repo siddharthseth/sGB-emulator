@@ -11,9 +11,9 @@ class sGBEmulator
 	public:
 		sGBEmulator(std::string);
 		virtual ~sGBEmulator() {};
-		void cpuStep();
-		void gpuStep();
-		void interruptStep();
+		bool cpuStep();
+		bool gpuStep();
+		bool interruptStep();
 
 	private:
 		std::string romPath;

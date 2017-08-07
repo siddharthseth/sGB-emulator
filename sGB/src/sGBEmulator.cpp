@@ -37,17 +37,17 @@ bool sGBEmulator::initialize()
 	}
 }
 
-void sGBEmulator::cpuStep() 
+bool sGBEmulator::cpuStep() 
 {
-	bool success = cpu->step();
+	return cpu->step();
 }
 
-void sGBEmulator::gpuStep() 
+bool sGBEmulator::gpuStep() 
 {
-
+	return true;
 }
 
-void sGBEmulator::interruptStep() 
+bool sGBEmulator::interruptStep() 
 {
-
+	return true;
 }
