@@ -6,8 +6,8 @@ using namespace std;
 
 sGBEmulator::sGBEmulator(string romPath) : 
 romPath(romPath), 
-romFile(romPath.c_str()),
-cpu()
+romFile(romPath.c_str(), ifstream::binary),
+cpu(new CPU())
 {
 	bool success = initialize();
 	if (success) {
@@ -19,14 +19,10 @@ cpu()
 
 bool sGBEmulator::initialize() 
 {
-	string line;
 	cout << "Attempting to load rom from: " << romPath << endl;
 
 	if (romFile.is_open()) {
-		while ( getline(romFile, line) )
-		{
-			cout << line << endl;
-		}
+		cpu->loadROM(romFile);
 		romFile.close();
 
 		cout << "Successfully loaded rom!" << endl;
@@ -37,12 +33,34 @@ bool sGBEmulator::initialize()
 	}
 }
 
-bool sGBEmulator::cpuStep() 
+bool sGBEmulator::update()
+{
+	int cyclesThisUpdate = 0;
+
+	while (cyclesThisUpdate < MAXCYCLES)
+	{
+		int cycles = this->cpuStep();
+		if (cycles == -1)
+		{
+			return false;
+		}
+
+		cyclesThisUpdate += cycles;
+
+		this->gpuStep(cycles);
+		this->interruptStep();
+	}
+
+	// renderScreen();
+	return true;
+}
+
+int sGBEmulator::cpuStep() 
 {
 	return cpu->step();
 }
 
-bool sGBEmulator::gpuStep() 
+bool sGBEmulator::gpuStep(int cycles) 
 {
 	return true;
 }

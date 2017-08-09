@@ -1,7 +1,10 @@
 #ifndef MMU_H
 #define MMU_H
 
+#include <fstream>
+#include <string>
 #include "constants.hpp"
+#include "rom.hpp"
 
 /* MEMORY MODEL:
 
@@ -32,14 +35,19 @@
 
 */
 
+using namespace std;
+
 class MMU
 {
 	public:
 		MMU();
 		virtual ~MMU() {};
 
+		void reset();
 		BYTE readByte(WORD);
 		WORD readWord(WORD);
+		void writeByte(WORD, BYTE);
+		void loadGame(ifstream&, BYTE);
 
 	private:
 		BYTE cartridge[0x8000];

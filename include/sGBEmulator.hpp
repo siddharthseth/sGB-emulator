@@ -11,15 +11,17 @@ class sGBEmulator
 	public:
 		sGBEmulator(std::string);
 		virtual ~sGBEmulator() {};
-		bool cpuStep();
-		bool gpuStep();
-		bool interruptStep();
+
+		bool update();
 
 	private:
 		std::string romPath;
 		std::ifstream romFile;
 		std::unique_ptr<CPU> cpu;
 
+		int cpuStep();
+		bool gpuStep(int);
+		bool interruptStep();
 
 		bool initialize();
 

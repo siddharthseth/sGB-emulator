@@ -1,17 +1,19 @@
 #include "CPU.hpp"
+#include "instructions.hpp"
 #include <iostream>
+#include <cstring>
 
 using namespace std;
 
 CPU::CPU() : 
-registers(),
-mmu(),
-clock()
+registers(new Registers()),
+mmu(new MMU()),
+clock(new Clock())
 {
 	reset();
 }
 
-bool CPU::step()
+int CPU::step()
 {
 	// Fetch next instruction & increment counter
 	BYTE instr = mmu->readByte(registers->pc++);
@@ -22,22 +24,58 @@ bool CPU::step()
 	// Execute instruction
 	if (instruction.func != NULL) 
 	{
-		return true;
+
+		clock->updateClocks(instruction.cycles);
+		return 1;
 	} 
 	else 
 	{
-		cout << "Instruction '" << instr << "' not implemented." << endl;
+		cout << "PC: " << hex((registers->pc - 1) >> 8) << hex(registers->pc - 1) <<  endl;
+		cout << "Instruction '" << instruction.assembly << "' not implemented." << endl;
 		cout << "Description: " << instruction.description << endl; 
-		return false;
+		return -1;
 	}
 }
 
+void CPU::loadROM(ifstream &romFile)
+{
+	char cartridgeInfo[0x014F];
+	romFile.read(cartridgeInfo, 0x014F);
+
+	BYTE romTypeVal = cartridgeInfo[ROM_TYPE_ADDRESS];
+	romType = romTypeNames[romTypeVal];
+	cout << "ROM type: " << romType << endl;
+
+	BYTE romSizeVal = cartridgeInfo[ROM_SIZE_ADDRESS];
+	cout << "ROM size: " << hex(romSizeVal) << endl;
+
+	BYTE ramSizeVal = cartridgeInfo[RAM_SIZE_ADDRESS];
+	cout << "RAM size: " << hex(ramSizeVal) << endl;
+
+	char romName[16];
+	memset(romName, 0, 16);
+	for(int i = 0; i < 16; i++) {
+		romName[i] = cartridgeInfo[ROM_NAME_ADDRESS + i];
+	}
+	cout << "ROM Name: " << romName << endl;
+
+	romFile.seekg(0, romFile.beg);
+	mmu->loadGame(romFile, romTypeVal);
+}
+
+/*
+ * Gameboy is reset to the same state everytime according to specs...
+ */
 void CPU::reset()
 {
-	registers->af = 0;
-	registers->bc = 0;
-	registers->de = 0;
-	registers->hl = 0;
-	registers->sp = 0;
-	registers->pc = 0;
+	mmu->reset();
+
+	registers->pc = 0x0100;
+	registers->af = 0x01B0;
+	registers->bc = 0x0013;
+	registers->de = 0x00D8;
+	registers->hl = 0x014D;
+	registers->sp = 0xFFFE;
+
+	clock->resetClocks();
 }

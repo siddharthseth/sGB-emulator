@@ -7,28 +7,28 @@ struct Registers
 {
 	union {
 		struct {
-			BYTE a, f;
+			BYTE f, a;
 		} _af;
 		WORD af;
 	}; // registers A + FLAG
 
 	union {
 		struct {
-			BYTE b, c;
+			BYTE c, b;
 		} _bc;
 		WORD bc;
 	}; // registers B + C
 
 	union {
 		struct {
-			BYTE d, e;
+			BYTE e, d;
 		} _de;
 		WORD de;
 	}; // registers D + E
 
 	union {
 		struct {
-			BYTE h, l;
+			BYTE l, h;
 		} _hl;
 		WORD hl;
 	}; // registers H + L
