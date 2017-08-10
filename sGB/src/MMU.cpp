@@ -128,6 +128,12 @@ void MMU::writeByte(WORD address, BYTE data)
 	}
 }
 
+void MMU::writeWord(WORD address, WORD data)
+{
+	this->writeByte(address, data & 0xff);
+	this->writeByte(address + 1, (data >> 8) & 0xff);
+}
+
 void MMU::reset()
 {
 	cout << "Currently reseting all memory..." << endl;

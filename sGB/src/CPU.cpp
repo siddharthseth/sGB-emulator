@@ -1,5 +1,4 @@
 #include "CPU.hpp"
-#include "instructions.hpp"
 #include <iostream>
 #include <cstring>
 
@@ -22,13 +21,24 @@ int CPU::step()
 	struct instruction instruction = instructionsTable[instr];
 
 	// Execute instruction
-	if (instruction.func != NULL) 
-	{
+	if (instruction.func != NULL){
+		switch(instruction.operandLength)
+		{
+			case 0:
+				(this->*(instruction.func))(0);
+				break;
+			case 1:
+				(this->*(instruction.func))(mmu->readByte(registers->pc));
+				break;
+			case 2:
+				(this->*(instruction.func))(mmu->readWord(registers->pc));
+				break;
+		}
 
+		registers->pc += instruction.operandLength;
 		clock->updateClocks(instruction.cycles);
-		return 1;
-	} 
-	else 
+		return instruction.cycles;
+	} else
 	{
 		cout << "PC: " << hex((registers->pc - 1) >> 8) << hex(registers->pc - 1) <<  endl;
 		cout << "Instruction '" << instruction.assembly << "' not implemented." << endl;

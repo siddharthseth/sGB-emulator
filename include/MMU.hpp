@@ -47,6 +47,7 @@ class MMU
 		BYTE readByte(WORD);
 		WORD readWord(WORD);
 		void writeByte(WORD, BYTE);
+		void writeWord(WORD, WORD);
 		void loadGame(ifstream&, BYTE);
 
 	private:
