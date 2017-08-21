@@ -80,12 +80,110 @@ void CPU::reset()
 {
 	mmu->reset();
 
+	registers->af.w = 0x01B0;
+	registers->bc.w = 0x0013;
+	registers->de.w = 0x00D8;
+	registers->hl.w = 0x014D;
+
 	registers->pc = 0x0100;
-	registers->af = 0x01B0;
-	registers->bc = 0x0013;
-	registers->de = 0x00D8;
-	registers->hl = 0x014D;
 	registers->sp = 0xFFFE;
 
 	clock->resetClocks();
+}
+
+void CPU::writeStack(WORD data)
+{
+	registers->sp -= 2;
+	mmu->writeWord(registers->sp, data);
+}
+
+void CPU::add(BYTE& dest, BYTE value)
+{
+	flagClear(*registers, flag_n);
+	// use int incase of carry, if upper 8 bits are set
+	unsigned int sum = dest + value;
+	dest = (BYTE) sum & 0xff; // only want lower 8 bits
+
+	if(sum & 0xff00) {
+		flagSet(*registers, flag_c);
+	} else {
+		flagClear(*registers, flag_c);
+	}
+
+	if((dest & 0x0f) + (value & 0x0f) > 0x0f) {
+		flagSet(*registers, flag_h);
+	} else {
+		flagClear(*registers, flag_h);
+	}
+
+	if(dest) {
+		flagClear(*registers, flag_z);
+	} else {
+		flagSet(*registers, flag_z);
+	}
+}
+
+void CPU::addWord(WORD& dest, WORD value)
+{
+	flagClear(*registers, flag_n);
+
+	unsigned long sum = dest + value;
+	dest = (WORD) sum & 0xffff;
+
+	if(sum & 0xffff0000) {
+		flagSet(*registers, flag_c);
+	} else {
+		flagClear(*registers, flag_c);
+	}
+
+	if((dest & 0x00ff) + (value & 0x00ff) > 0x00ff) {
+		flagSet(*registers, flag_h);
+	} else {
+		flagClear(*registers, flag_h);
+	}
+}
+
+
+BYTE CPU::increment(BYTE value)
+{
+	flagClear(*registers, flag_n); // reset neg
+	
+	bool halfCarry = value & 0x0f;
+	if(halfCarry) {
+		flagSet(*registers, flag_h);
+	} else {
+		flagClear(*registers, flag_h);
+	}
+
+	value++;
+
+	if(value) {
+		flagClear(*registers, flag_z);
+	} else {
+		flagSet(*registers, flag_z);
+	}
+
+	return value;
+}
+
+BYTE CPU::decrement(BYTE value)
+{
+	flagSet(*registers, flag_n);
+
+	bool halfCarry = value & 0x0f;
+	if(halfCarry) {
+		flagClear(*registers, flag_h);
+	} else {
+		flagSet(*registers, flag_h);
+	}
+
+	value--;
+
+	if(value) {
+		flagClear(*registers, flag_z);
+	} else {
+		flagSet(*registers, flag_z);
+	}
+
+	return value;
 }

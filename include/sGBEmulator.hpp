@@ -4,7 +4,9 @@
 #include <memory>
 #include <string>
 #include <fstream>
+#include "timer.hpp"
 #include "CPU.hpp"
+#include "GPU.hpp"
 
 class sGBEmulator
 {
@@ -18,10 +20,13 @@ class sGBEmulator
 		std::string romPath;
 		std::ifstream romFile;
 		std::unique_ptr<CPU> cpu;
+		std::unique_ptr<GPU> gpu;
+		std::unique_ptr<Timer> timer;
 
 		int cpuStep();
-		bool gpuStep(int);
-		bool interruptStep();
+		void timerStep(int);
+		void gpuStep(int);
+		void interruptStep();
 
 		bool initialize();
 

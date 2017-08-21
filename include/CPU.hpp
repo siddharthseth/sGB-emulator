@@ -40,22 +40,39 @@ class CPU
 		// represents type of rom
 		string romType;
 
-		void writeStack(WORD data) {
-			registers->sp -= 2;
-			mmu->writeWord(registers->sp, data);
-		}
+		void writeStack(WORD);
+
+		void add(BYTE&, BYTE);
+		void addWord(WORD&, WORD);
+		void subtract(BYTE n);
+		void sbc(BYTE n);
+		void andd(BYTE n);
+		void xorr(BYTE n);
+		BYTE increment(BYTE val);
+		BYTE decrement(BYTE val);
 
 		void nop(WORD){}
-		void ld_bc_nn(WORD op){ registers->bc = op; }
-		void ld_bc_a(WORD){ registers->bc = registers->_af.a; }
-		void inc_bc(WORD){ registers->bc++; }
-		void inc_b(WORD){ registers->_bc.b++; }
-		void dec_b(WORD){ registers->_bc.b--; }
+		void ld_bc_nn(WORD op){ registers->bc.w = op; }
+		void ld_bc_a(WORD){ mmu->writeByte(registers->bc.w, registers->af.b.b1); }
+		void inc_bc(WORD){ registers->bc.w++; }
+		void inc_b(WORD){ registers->bc.b.b1 = increment(registers->bc.b.b1); }
+		void dec_b(WORD){ registers->bc.b.b1 = decrement(registers->bc.b.b1); }
+		void ld_b_n(WORD op){ registers->bc.w = op; }
+		void rlca(WORD) {
+			bool carry = registers->af.b.b1 & 0x80;
 
-		// void ld_b_n(WORD){}
-		// 	{"LD B, n", "Put value B into n.", 1, 8, NULL}, // 0x06
-		// 	{"RLCA", "Rotate A left. Ild bit 7 to Carry flag.", 0, 4, NULL}, // 0x07
-		// 	{"LD nn, (SP)", "Put (SP) at address n", 2, 20, NULL}, // 0x08
+			if (carry) {
+				flagSet(*registers, flag_c);
+			} else {
+				flagClear(*registers, flag_c);
+			}
+
+			registers->af.b.b1 <<= 1; // shift left 1
+			registers->af.b.b1 += carry;
+			flagClear(registers, flag_h | flag_n | flag_z);
+		};
+		void ld_nn_sp(WORD op) { mmu->writeWord(op, registers->sp.w); }
+		void add_hl_bc(WORD) {}
 		// 	{"ADD (HL), (BC)", "Add (BC) to (HL).", 0, 8, NULL}, // 0x09
 		// 	{"LD A, (BC)", "Put value (BC) into A.", 0, 8, NULL}, // 0x0A
 		// 	{"DEC (BC)", "Decrement register (BC).", 0, 8, NULL}, // 0x0B
@@ -175,46 +192,46 @@ class CPU
 		// 	{"LD A, L", "Put value L into A.", 0, 4, NULL}, // 0x7D
 		// 	{"LD A, (HL)", "Put value (HL) into A", 0, 8, NULL}, // 0x7E
 		// 	{"LD A, A", "Put value A into A", 0, 4, NULL}, // 0x7F
-		// 	{"ADD A, B", "Add B to A", 0, 4, NULL}, // 0x80
-		// 	{"ADD A, C", "Add C to A", 0, 4, NULL}, // 0x81
-		// 	{"ADD A, D", "Add D to A", 0, 4, NULL}, // 0x82
-		// 	{"ADD A, E", "Add E to A", 0, 4, NULL}, // 0x83
-		// 	{"ADD A, H", "Add H to A", 0, 4, NULL}, // 0x84
-		// 	{"ADD A, L", "Add L to A", 0, 4, NULL}, // 0x85
-		// 	{"ADD A, (HL)", "Add (HL) to A", 0, 8, NULL}, // 0x86
-		// 	{"ADD A, A", "Add A to A", 0, 4, NULL}, // 0x87
-		// 	{"ADC A, B", "Add B + Carry flag to A.", 0, 4, NULL}, // 0x88
-		// 	{"ADC A, C", "Add C + Carry flag to A.", 0, 4, NULL}, // 0x89
-		// 	{"ADC A, D", "Add D + Carry flag to A.", 0, 4, NULL}, // 0x8A
-		// 	{"ADC A, E", "Add E + Carry flag to A.", 0, 4, NULL}, // 0x8B
-		// 	{"ADC A, H", "Add H + Carry flag to A.", 0, 4, NULL}, // 0x8C
-		// 	{"ADC A, L", "Add L + Carry flag to A.", 0, 4, NULL}, // 0x8D
-		// 	{"ADC A, (HL)", "Add (HL) + Carry flag to A.", 0, 8, NULL}, // 0x8E
-		// 	{"ADC A, A", "Add A + Carry flag to A.", 0, 4, NULL}, // 0x8F
-		// 	{"SUB B", "Subtract B from A.", 0, 4, NULL}, // 0x90
-		// 	{"SUB C", "Subtract C from A.", 0, 4, NULL}, // 0x91
-		// 	{"SUB D", "Subtract D from A.", 0, 4, NULL}, // 0x92
-		// 	{"SUB E", "Subtract E from A.", 0, 4, NULL}, // 0x93
-		// 	{"SUB H", "Subtract H from A.", 0, 4, NULL}, // 0x94
-		// 	{"SUB L", "Subtract L from A.", 0, 4, NULL}, // 0x95
-		// 	{"SUB (HL)", "Subtract (HL) from A.", 0, 8, NULL}, // 0x96
-		// 	{"SUB A", "Subtract A from A.", 0, 4, NULL}, // 0x97
-		// 	{"SBC A, B", "Subtract B + Carry flag from A.", 0, 4, NULL}, // 0x98
-		// 	{"SBC A, C", "Subtract C + Carry flag from A.", 0, 4, NULL}, // 0x99
-		// 	{"SBC A, D", "Subtract D + Carry flag from A.", 0, 4, NULL}, // 0x9A
-		// 	{"SBC A, E", "Subtract E + Carry flag from A.", 0, 4, NULL}, // 0x9B
-		// 	{"SBC A, H", "Subtract H + Carry flag from A.", 0, 4, NULL}, // 0x9C
-		// 	{"SBC A, L", "Subtract L + Carry flag from A.", 0, 4, NULL}, // 0x9D
-		// 	{"SBC A, (HL)", "Subtract (HL) + Carry flag from A.", 0, 8, NULL}, // 0x9E
-		// 	{"SBC A, A", "Subtract A + Carry flag from A.", 0, 4, NULL}, // 0x9F
-		// 	{"AND B", "Logically AND B with A, result in A.", 0, 4, NULL}, // 0xA0
-		// 	{"AND C", "Logically AND C with A, result in A.", 0, 4, NULL}, // 0xA1
-		// 	{"AND D", "Logically AND D with A, result in A.", 0, 4, NULL}, // 0xA2
-		// 	{"AND E", "Logically AND E with A, result in A.", 0, 4, NULL}, // 0xA3
-		// 	{"AND H", "Logically AND H with A, result in A.", 0, 4, NULL}, // 0xA4
-		// 	{"AND L", "Logically AND L with A, result in A.", 0, 4, NULL}, // 0xA5
-		// 	{"AND (HL)", "Logically AND (HL) with A, result in A.", 0, 8, NULL}, // 0xA6
-		// 	{"AND A", "Logically AND A with A, result in A.", 0, 4, NULL}, // 0xA7
+		void add_b(WORD n) { add(registers->bc.b.b1); }
+		void add_c(WORD n) { add(registers->bc.b.b2); }
+		void add_d(WORD n) { add(registers->de.b.b1); }
+		void add_e(WORD n) { add(registers->de.b.b2); }
+		void add_h(WORD n) { add(registers->hl.b.b1); }
+		void add_l(WORD n) { add(registers->hl.b.b2); }
+		void add_hl(WORD n) { add(registers->hl.w); }
+		void add_a(WORD n) { add(registers->af.b.b1); }
+		void adc_b(WORD n) { adc(registers->bc.b.b1); }
+		void adc_c(WORD n) { adc(registers->bc.b.b2); }
+		void adc_d(WORD n) { adc(registers->de.b.b1); }
+		void adc_e(WORD n) { adc(registers->de.b.b2); }
+		void adc_h(WORD n) { adc(registers->hl.b.b1); }
+		void adc_l(WORD n) { adc(registers->hl.b.b2); }
+		void adc_hl(WORD n) { adc(registers->hl.w); }
+		void adc_a(WORD n) { adc(registers->af.b.b1); }
+		void sub_b(WORD n) { subtract(registers->bc.b.b1); }
+		void sub_c(WORD n) { subtract(registers->bc.b.b2); }
+		void sub_d(WORD n) { subtract(registers->de.b.b1); }
+		void sub_e(WORD n) { subtract(registers->de.b.b2); }
+		void sub_h(WORD n) { subtract(registers->hl.b.b1); }
+		void sub_l(WORD n) { subtract(registers->hl.b.b2); }
+		void sub_hl(WORD n) { subtract(registers->hl.w); }
+		void sub_a(WORD n) { subtract(registers->af.b.b1); }
+		void sbc_b(WORD n) { sbc(registers->bc.b.b1); }
+		void sbc_c(WORD n) { sbc(registers->bc.b.b2); }
+		void sbc_d(WORD n) { sbc(registers->de.b.b1); }
+		void sbc_e(WORD n) { sbc(registers->de.b.b2); }
+		void sbc_h(WORD n) { sbc(registers->hl.b.b1); }
+		void sbc_l(WORD n) { sbc(registers->hl.b.b2); }
+		void sbc_hl(WORD n) { sbc(registers->hl.w); }
+		void sbc_a(WORD n) { sbc(registers->af.b.b1); }
+		void and_b(WORD n) { andd(registers->bc.b.b1); }
+		void and_c(WORD n) { andd(registers->bc.b.b2); }
+		void and_d(WORD n) { andd(registers->de.b.b1); }
+		void and_e(WORD n) { andd(registers->de.b.b2); }
+		void and_h(WORD n) { andd(registers->hl.b.b1); }
+		void and_l(WORD n) { andd(registers->hl.b.b2); }
+		void and_hl(WORD n) { andd(registers->hl.w); }
+		void and_a(WORD n) { andd(registers->af.b.b1); }
 		// 	{"XOR B", "Logical exclusive OR B with register A, result in A.", 0, 4, NULL}, // 0xA8
 		// 	{"XOR C", "Logical exclusive OR C with register A, result in A.", 0, 4, NULL}, // 0xA9
 		// 	{"XOR D", "Logical exclusive OR D with register A, result in A.", 0, 4, NULL}, // 0xAA
@@ -698,38 +715,38 @@ class CPU
 			{"LD A, L", "Put value L into A.", 0, 4, NULL}, // 0x7D
 			{"LD A, (HL)", "Put value (HL) into A", 0, 8, NULL}, // 0x7E
 			{"LD A, A", "Put value A into A", 0, 4, NULL}, // 0x7F
-			{"ADD A, B", "Add B to A", 0, 4, NULL}, // 0x80
-			{"ADD A, C", "Add C to A", 0, 4, NULL}, // 0x81
-			{"ADD A, D", "Add D to A", 0, 4, NULL}, // 0x82
-			{"ADD A, E", "Add E to A", 0, 4, NULL}, // 0x83
-			{"ADD A, H", "Add H to A", 0, 4, NULL}, // 0x84
-			{"ADD A, L", "Add L to A", 0, 4, NULL}, // 0x85
-			{"ADD A, (HL)", "Add (HL) to A", 0, 8, NULL}, // 0x86
-			{"ADD A, A", "Add A to A", 0, 4, NULL}, // 0x87
-			{"ADC A, B", "Add B + Carry flag to A.", 0, 4, NULL}, // 0x88
-			{"ADC A, C", "Add C + Carry flag to A.", 0, 4, NULL}, // 0x89
-			{"ADC A, D", "Add D + Carry flag to A.", 0, 4, NULL}, // 0x8A
-			{"ADC A, E", "Add E + Carry flag to A.", 0, 4, NULL}, // 0x8B
-			{"ADC A, H", "Add H + Carry flag to A.", 0, 4, NULL}, // 0x8C
-			{"ADC A, L", "Add L + Carry flag to A.", 0, 4, NULL}, // 0x8D
-			{"ADC A, (HL)", "Add (HL) + Carry flag to A.", 0, 8, NULL}, // 0x8E
-			{"ADC A, A", "Add A + Carry flag to A.", 0, 4, NULL}, // 0x8F
-			{"SUB B", "Subtract B from A.", 0, 4, NULL}, // 0x90
-			{"SUB C", "Subtract C from A.", 0, 4, NULL}, // 0x91
-			{"SUB D", "Subtract D from A.", 0, 4, NULL}, // 0x92
-			{"SUB E", "Subtract E from A.", 0, 4, NULL}, // 0x93
-			{"SUB H", "Subtract H from A.", 0, 4, NULL}, // 0x94
-			{"SUB L", "Subtract L from A.", 0, 4, NULL}, // 0x95
-			{"SUB (HL)", "Subtract (HL) from A.", 0, 8, NULL}, // 0x96
-			{"SUB A", "Subtract A from A.", 0, 4, NULL}, // 0x97
-			{"SBC A, B", "Subtract B + Carry flag from A.", 0, 4, NULL}, // 0x98
-			{"SBC A, C", "Subtract C + Carry flag from A.", 0, 4, NULL}, // 0x99
-			{"SBC A, D", "Subtract D + Carry flag from A.", 0, 4, NULL}, // 0x9A
-			{"SBC A, E", "Subtract E + Carry flag from A.", 0, 4, NULL}, // 0x9B
-			{"SBC A, H", "Subtract H + Carry flag from A.", 0, 4, NULL}, // 0x9C
-			{"SBC A, L", "Subtract L + Carry flag from A.", 0, 4, NULL}, // 0x9D
-			{"SBC A, (HL)", "Subtract (HL) + Carry flag from A.", 0, 8, NULL}, // 0x9E
-			{"SBC A, A", "Subtract A + Carry flag from A.", 0, 4, NULL}, // 0x9F
+			{"ADD A, B", "Add B to A", 0, 4, &CPU::add_b}, // 0x80
+			{"ADD A, C", "Add C to A", 0, 4, &CPU::add_c}, // 0x81
+			{"ADD A, D", "Add D to A", 0, 4, &CPU::add_d}, // 0x82
+			{"ADD A, E", "Add E to A", 0, 4, &CPU::add_e}, // 0x83
+			{"ADD A, H", "Add H to A", 0, 4, &CPU::add_h}, // 0x84
+			{"ADD A, L", "Add L to A", 0, 4, &CPU::add_l}, // 0x85
+			{"ADD A, (HL)", "Add (HL) to A", 0, 8, &CPU::add_hl}, // 0x86
+			{"ADD A, A", "Add A to A", 0, 4, &CPU::add_a}, // 0x87
+			{"ADC A, B", "Add B + Carry flag to A.", 0, 4, &CPU::adc_b}, // 0x88
+			{"ADC A, C", "Add C + Carry flag to A.", 0, 4, &CPU::adc_c}, // 0x89
+			{"ADC A, D", "Add D + Carry flag to A.", 0, 4, &CPU::adc_d}, // 0x8A
+			{"ADC A, E", "Add E + Carry flag to A.", 0, 4, &CPU::adc_e}, // 0x8B
+			{"ADC A, H", "Add H + Carry flag to A.", 0, 4, &CPU::adc_h}, // 0x8C
+			{"ADC A, L", "Add L + Carry flag to A.", 0, 4, &CPU::adc_l}, // 0x8D
+			{"ADC A, (HL)", "Add (HL) + Carry flag to A.", 0, 8, &CPU::adc_hl}, // 0x8E
+			{"ADC A, A", "Add A + Carry flag to A.", 0, 4, &CPU::adc_a}, // 0x8F
+			{"SUB B", "Subtract B from A.", 0, 4, &CPU::sub_b}, // 0x90
+			{"SUB C", "Subtract C from A.", 0, 4, &CPU::sub_c}, // 0x91
+			{"SUB D", "Subtract D from A.", 0, 4, &CPU::sub_d}, // 0x92
+			{"SUB E", "Subtract E from A.", 0, 4, &CPU::sub_e}, // 0x93
+			{"SUB H", "Subtract H from A.", 0, 4, &CPU::sub_h}, // 0x94
+			{"SUB L", "Subtract L from A.", 0, 4, &CPU::sub_l}, // 0x95
+			{"SUB (HL)", "Subtract (HL) from A.", 0, 8, &CPU::sub_hl}, // 0x96
+			{"SUB A", "Subtract A from A.", 0, 4, &CPU::sub_a}, // 0x97
+			{"SBC A, B", "Subtract B + Carry flag from A.", 0, 4, &CPU::sbc_b}, // 0x98
+			{"SBC A, C", "Subtract C + Carry flag from A.", 0, 4, &CPU::sbc_c}, // 0x99
+			{"SBC A, D", "Subtract D + Carry flag from A.", 0, 4, &CPU::sbc_d}, // 0x9A
+			{"SBC A, E", "Subtract E + Carry flag from A.", 0, 4, &CPU::sbc_e}, // 0x9B
+			{"SBC A, H", "Subtract H + Carry flag from A.", 0, 4, &CPU::sbc_h}, // 0x9C
+			{"SBC A, L", "Subtract L + Carry flag from A.", 0, 4, &CPU::sbc_l}, // 0x9D
+			{"SBC A, (HL)", "Subtract (HL) + Carry flag from A.", 0, 8, &CPU::sbc_hl}, // 0x9E
+			{"SBC A, A", "Subtract A + Carry flag from A.", 0, 4, &CPU::sbc_a}, // 0x9F
 			{"AND B", "Logically AND B with A, result in A.", 0, 4, NULL}, // 0xA0
 			{"AND C", "Logically AND C with A, result in A.", 0, 4, NULL}, // 0xA1
 			{"AND D", "Logically AND D with A, result in A.", 0, 4, NULL}, // 0xA2

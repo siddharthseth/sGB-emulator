@@ -7,7 +7,9 @@ using namespace std;
 sGBEmulator::sGBEmulator(string romPath) : 
 romPath(romPath), 
 romFile(romPath.c_str(), ifstream::binary),
-cpu(new CPU())
+cpu(new CPU()),
+gpu(new GPU()),
+timer(new Timer())
 {
 	bool success = initialize();
 	if (success) {
@@ -46,7 +48,7 @@ bool sGBEmulator::update()
 		}
 
 		cyclesThisUpdate += cycles;
-
+		this->timerStep(cycles);
 		this->gpuStep(cycles);
 		this->interruptStep();
 	}
@@ -60,12 +62,17 @@ int sGBEmulator::cpuStep()
 	return cpu->step();
 }
 
-bool sGBEmulator::gpuStep(int cycles) 
+void sGBEmulator::timerStep(int cycles)
 {
-	return true;
+	timer->step(cycles);
 }
 
-bool sGBEmulator::interruptStep() 
+void sGBEmulator::gpuStep(int cycles) 
 {
-	return true;
+	gpu->step(cycles);
+}
+
+void sGBEmulator::interruptStep() 
+{
+
 }

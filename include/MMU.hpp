@@ -35,8 +35,6 @@
 
 */
 
-using namespace std;
-
 class MMU
 {
 	public:
@@ -48,7 +46,7 @@ class MMU
 		WORD readWord(WORD);
 		void writeByte(WORD, BYTE);
 		void writeWord(WORD, WORD);
-		void loadGame(ifstream&, BYTE);
+		void loadGame(std::ifstream&, BYTE);
 
 	private:
 		BYTE cartridge[0x8000];
@@ -58,6 +56,11 @@ class MMU
 		BYTE oam[0x100];
 		BYTE io[0x80];
 		BYTE ram[0x80];
+
+		// BYTE cartridgeBanks[0x8000];
+		// BYTE ramBanks[0x8000];
+		BYTE currROMBank;
+		BYTE currRAMBank;
 };
 
 #endif

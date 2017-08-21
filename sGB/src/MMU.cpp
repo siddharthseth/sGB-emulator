@@ -4,7 +4,9 @@
 
 using namespace std;
 
-MMU::MMU()
+MMU::MMU():
+currROMBank(1),
+currRAMBank(0);
 {
 }
 
