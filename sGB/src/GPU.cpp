@@ -9,34 +9,33 @@ currLine(0)
 }
 
 // http://imrannazar.com/GameBoy-Emulation-in-JavaScript:-GPU-Timings
-GPU::step(int cycles)
+void GPU::step(int cycles)
 {
-	if (!isEnabled()) {
-		return;
-	}
+	// if (!isEnabled()) {
+	// 	return;
+	// }
 
-	scanningCounter += cycles;
+	// scanningCounter += cycles;
 
-	switch(mode) {
-		case HBLANK:
-			if (scanningCounter >= 204) {
-				currLine++;
-				scanningCounter = 0;
+	// switch(mode) {
+	// 	case HBLANK:
+	// 		if (scanningCounter >= 204) {
+	// 			currLine++;
+	// 			scanningCounter = 0;
 
-				// reached last line, enter vblank
-				if (line == 143) {
-					mode = VBLANK;
+	// 			// reached last line, enter vblank
+	// 			if (line == 143) {
+	// 				mode = VBLANK;
+	// 			} else {
+	// 				mode = OAM;
+	// 			}
+	// 		}
+	// 		break;
+	// 	case VBLANK:
 
-				} else {
-					mode = OAM;
-				}
-			}
-			break;
-		case VBLANK:
+	// 	case OAM:
 
-		case OAM:
+	// 	case VRAM:
 
-		case VRAM:
-
-	}
+	// }
 }

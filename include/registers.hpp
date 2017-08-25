@@ -19,28 +19,16 @@ struct Registers
 	WORD pc; // program counter (PC)
 };
 
-bool flagCarry(Registers& r) {
-	return r.af.b.b2 & flag_c;
-}
+extern bool flagCarry(Registers& r);
 
-bool flagHalf(Registers& r) {
-	return r.af.b.b2  & flag_h;
-}
+extern bool flagHalf(Registers& r);
 
-bool flagNegative(Registers& r) {
-	return r.af.b.b2 & flag_n;
-}
+extern bool flagNegative(Registers& r);
 
-bool flagZero(Registers& r) {
-	return r.af.b.b2 & flag_z;
-}
+extern bool flagZero(Registers& r);
 
-void flagSet(Registers& r, BYTE f) {
-	r.af.b.b2 |= f;
-}
+extern void flagSet(Registers& r, BYTE f);
 
-void flagClear(Registers& r, BYTE f) {
-	r.af.b.b2 &= ~f;
-}
+extern void flagClear(Registers& r, BYTE f);
 
 #endif

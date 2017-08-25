@@ -6,7 +6,7 @@ using namespace std;
 
 MMU::MMU():
 currROMBank(1),
-currRAMBank(0);
+currRAMBank(0)
 {
 }
 

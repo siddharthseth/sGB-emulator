@@ -21,5 +21,6 @@ class GPU
 		bool isEnabled();
 		int scanningCounter;
 		int currLine;
-}
+};
+
 #endif

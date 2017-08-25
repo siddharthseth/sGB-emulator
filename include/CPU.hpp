@@ -44,20 +44,24 @@ class CPU
 
 		void add(BYTE&, BYTE);
 		void addWord(WORD&, WORD);
-		void subtract(BYTE n);
-		void sbc(BYTE n);
-		void andd(BYTE n);
-		void xorr(BYTE n);
-		BYTE increment(BYTE val);
-		BYTE decrement(BYTE val);
+		void adc(BYTE);
+		void subtract(BYTE);
+		void sbc(BYTE);
+		void andd(BYTE);
+		void orr(BYTE);
+		void xorr(BYTE);
+		void cp(BYTE);
+		BYTE increment(BYTE);
+		BYTE decrement(BYTE);
 
-		void nop(WORD){}
-		void ld_bc_nn(WORD op){ registers->bc.w = op; }
-		void ld_bc_a(WORD){ mmu->writeByte(registers->bc.w, registers->af.b.b1); }
-		void inc_bc(WORD){ registers->bc.w++; }
-		void inc_b(WORD){ registers->bc.b.b1 = increment(registers->bc.b.b1); }
-		void dec_b(WORD){ registers->bc.b.b1 = decrement(registers->bc.b.b1); }
-		void ld_b_n(WORD op){ registers->bc.w = op; }
+		// instructions start here -- check descriptions underneath
+		void nop(WORD) {}
+		void ld_bc_nn(WORD op) { registers->bc.w = op; }
+		void ld_bc_a(WORD) { mmu->writeByte(registers->bc.w, registers->af.b.b1); }
+		void inc_bc(WORD) { registers->bc.w++; }
+		void inc_b(WORD) { registers->bc.b.b1 = increment(registers->bc.b.b1); }
+		void dec_b(WORD) { registers->bc.b.b1 = decrement(registers->bc.b.b1); }
+		void ld_b_n(WORD op) { registers->bc.b.b1 = (BYTE)op; }
 		void rlca(WORD) {
 			bool carry = registers->af.b.b1 & 0x80;
 
@@ -68,194 +72,287 @@ class CPU
 			}
 
 			registers->af.b.b1 <<= 1; // shift left 1
-			registers->af.b.b1 += carry;
-			flagClear(registers, flag_h | flag_n | flag_z);
+			registers->af.b.b1 += (carry?1:0);
+			flagClear(*registers, flag_h | flag_n | flag_z);
 		};
-		void ld_nn_sp(WORD op) { mmu->writeWord(op, registers->sp.w); }
-		void add_hl_bc(WORD) {}
-		// 	{"ADD (HL), (BC)", "Add (BC) to (HL).", 0, 8, NULL}, // 0x09
-		// 	{"LD A, (BC)", "Put value (BC) into A.", 0, 8, NULL}, // 0x0A
-		// 	{"DEC (BC)", "Decrement register (BC).", 0, 8, NULL}, // 0x0B
-		// 	{"INC C", "Increment register C.", 0, 4, NULL}, // 0x0C
-		// 	{"DEC C", "Decrement register C.", 0, 4, NULL}, // 0x0D
-		// 	{"LD C, n", "Put value C into n.", 1, 8, NULL}, // 0x0E
-		// 	{"RRCA", "Rotate A right.Old bit 0 to Carry flag.", 0, 4, NULL}, // 0x0F
+		void ld_nn_sp(WORD op) { mmu->writeWord(op, registers->sp); }
+		void add_hl_bc(WORD) { addWord(registers->hl.w, registers->bc.w); }
+		void ld_a_bc(WORD) { registers->af.b.b1 = mmu->readByte(registers->bc.w); }
+		void dec_bc(WORD) { registers->bc.w--; }
+		void inc_c(WORD) { registers->bc.b.b2 = increment(registers->bc.b.b2); }
+		void dec_c(WORD) { registers->bc.b.b2 = decrement(registers->bc.b.b2); }
+		void ld_c_n(WORD op) { registers->bc.b.b2 = (BYTE)op; }
+		void rrca(WORD) {
+			bool carry = registers->af.b.b1 & 0x01;
+
+			if (carry) {
+				flagSet(*registers, flag_c);
+			} else {
+				flagClear(*registers, flag_c);
+			}
+
+			registers->af.b.b1 >>= 1; //shift right 1
+			if (carry) {
+				registers->af.b.b1 |= 0x80;
+			}
+			flagClear(*registers, flag_h | flag_n | flag_z);
+		};
 		// 	{"STOP", "Halt CPU & LCD display until button is pressed.", 0, 4, NULL}, // 0x10
-		// 	{"LD (DE), nn", "Put value nn into (DE).", 2, 12, NULL}, // 0x11
-		// 	{"LD (DE), A", "Put value A into (DE).", 0, 8, NULL}, // 0x12
-		// 	{"INC (DE)", "Increment register (DE).", 0, 8, NULL}, // 0x13
-		// 	{"INC D", "Increment register D.", 0, 4, NULL}, // 0x14
-		// 	{"DEC D", "Decrement register E.", 0, 4, NULL}, // 0x15
-		// 	{"LD D, n", "Put value D into n.", 1, 8, NULL}, // 0x16
-		// 	{"RLA", "Rotate A left through Carry flag.", 0, 4, NULL}, // 0x17
-		// 	{"JR n", "Add n to current address and jump to it.", 1, 8, NULL}, // 0x18
-		// 	{"ADD (HL), (DE)", "Add (DE) to (HL).", 0, 8, NULL}, // 0x19
-		// 	{"LD A, (DE)", "Put value (DE) into A.", 0, 8, NULL}, // 0x1A
-		// 	{"DEC (DE)", "Decrement register (DE).", 0, 8, NULL}, // 0x1B
-		// 	{"INC E", "Increment register E.", 0, 4, NULL}, // 0x1C
-		// 	{"DEC E", "Decrement register E.", 0, 4, NULL}, // 0x1D
-		// 	{"LD E, n", "Put value E into n.", 1, 8, NULL}, // 0x1E
-		// 	{"RRA", "Rotate A right through carry flag.", 0, 4, NULL}, // 0x1F
-		// 	{"JR NZ, n", "If Z flag is reset, add n to current address and jump to it.", 1, 8, NULL}, // 0x20
-		// 	{"LD (HL), nn", "Put value nn into (HL).", 2, 12, NULL}, // 0x21
-		// 	{"LDI (HL), A", "Put A into memory address (HL). Increment (HL).", 0, 8, NULL}, // 0x22
-		// 	{"INC (HL)", "Increment register (HL).", 0, 8, NULL}, // 0x23
-		// 	{"INC H", "Increment register H.", 0, 4, NULL}, // 0x24
-		// 	{"DEC H", "Decrement register H.", 0, 4, NULL}, // 0x25
-		// 	{"LD H, n", "Put value H into n.", 1, 8, NULL}, // 0x26
-		// 	{"DAA", "Decimal adjust register A.", 0, 4, NULL}, // 0x27
-		// 	{"JR Z, n", "If Z flag is set, add n to current address and jump to it.", 1, 8, NULL}, // 0x28
-		// 	{"ADD (HL), (HL)", "Add (HL) to (HL).", 0, 8, NULL}, // 0x29
-		// 	{"LDI A, (HL)", "Put value at address HL into A. Increment (HL).", 0, 8, NULL}, // 0x2A
-		// 	{"DEC (HL)", "Decrement register (HL).", 0, 8, NULL}, // 0x2B
-		// 	{"INC L", "Increment register L.", 0, 4, NULL}, // 0x2C
-		// 	{"DEC L", "Decrement register L.", 0, 4, NULL}, // 0x2D
-		// 	{"LD L, n", "Put value L into n.", 1, 8, NULL}, // 0x2E
-		// 	{"CPL", "Complement A register. (Flip all bits).", 0, 4, NULL}, // 0x2F
-		// 	{"JR NC, n", "If C flag is reset, add n to current address and jump to it.", 1, 8, NULL}, // 0x30
-		// 	{"LD (SP), nn", "Put value nn into (SP).", 2, 12, NULL}, // 0x31
-		// 	{"LDD (HL), A", "Put A into memory address (HL). Decrement (HL).", 0, 8, NULL}, // 0x32
-		// 	{"INC (SP)", "Increment register (SP).", 0, 8, NULL}, // 0x33
-		// 	{"INC (HL)", "Increment register (HL).", 0, 12, NULL}, // 0x34
-		// 	{"DEC (HL)", "Decrement register (HL).", 0, 12, NULL}, // 0x35
-		// 	{"LD (HL), n", "Put value n into (HL).", 1, 12, NULL}, // 0x36
-		// 	{"SCF", "Set Carry flag.", 0, 4, NULL}, // 0x37
-		// 	{"JR C, n", "If C flag is set, add n to current address and jump to it.", 1, 8, NULL}, // 0x38
-		// 	{"ADD (HL), (SP)", "Add (SP) to (HL).", 0, 8, NULL}, // 0x39
-		// 	{"LDD A, (HL)", "Put value at address (HL) into A. Decrement (HL).", 0, 8, NULL}, // 0x3A
-		// 	{"DEC (SP)", "Decrement register (SP).", 0, 8, NULL}, // 0x3B
-		// 	{"INC A", "Increment register A.", 0, 4, NULL}, // 0x3C
-		// 	{"DEC A", "Decrement register A.", 0, 4, NULL}, // 0x3D
-		// 	{"LD A, #", "Put value # into A.", 1, 8, NULL}, // 0x3E
-		// 	{"CCF", "Complement carry flag. If C flag is set, then reset it. If C flag is reset, then set it.", 0, 4, NULL}, // 0x3F
-		// 	{"LD B, B", "Put value B into B.", 0, 4, NULL}, // 0x40
-		// 	{"LD B, C", "Put value C into B.", 0, 4, NULL}, // 0x41
-		// 	{"LD B, D", "Put value D into B.", 0, 4, NULL}, // 0x42
-		// 	{"LD B, E", "Put value E into B.", 0, 4, NULL}, // 0x43
-		// 	{"LD B, H", "Put value H into B.", 0, 4, NULL}, // 0x44
-		// 	{"LD B, L", "Put value L into B.", 0, 4, NULL}, // 0x45
-		// 	{"LD B, (HL)", "Put value (HL) into B.", 0, 8, NULL}, // 0x46
-		// 	{"LD B, A", "Put value A into B.", 0, 4, NULL}, // 0x47
-		// 	{"LD C, B", "Put value B into C.", 0, 4, NULL}, // 0x48
-		// 	{"LD C, C", "Put value C into C.", 0, 4, NULL}, // 0x49
-		// 	{"LD C, D", "Put value D into C.", 0, 4, NULL}, // 0x4A
-		// 	{"LD C, E", "Put value E into C.", 0, 4, NULL}, // 0x4B
-		// 	{"LD C, H", "Put value H into C.", 0, 4, NULL}, // 0x4C
-		// 	{"LD C, L", "Put value L into C.", 0, 4, NULL}, // 0x4D
-		// 	{"LD C, (HL)", "Put value (HL) into C.", 0, 8, NULL}, // 0x4E
-		// 	{"LD C, A", "Put value A into C.", 0, 4, NULL}, // 0x4F
-		// 	{"LD D, B", "Put value B into D.", 0, 4, NULL}, // 0x50
-		// 	{"LD D, C", "Put value C into D.", 0, 4, NULL}, // 0x51
-		// 	{"LD D, D", "Put value D into D.", 0, 4, NULL}, // 0x52
-		// 	{"LD D, E", "Put value E into D.", 0, 4, NULL}, // 0x53
-		// 	{"LD D, H", "Put value H into D.", 0, 4, NULL}, // 0x54
-		// 	{"LD D, L", "Put value L into D.", 0, 4, NULL}, // 0x55
-		// 	{"LD D, (HL)", "Put value (HL) into D.", 0, 8, NULL}, // 0x56
-		// 	{"LD D, A", "Put value A into D.", 0, 4, NULL}, // 0x57
-		// 	{"LD E, B", "Put value B into E.", 0, 4, NULL}, // 0x58
-		// 	{"LD E, C", "Put value C into E.", 0, 4, NULL}, // 0x59
-		// 	{"LD E, D", "Put value D into E.", 0, 4, NULL}, // 0x5A
-		// 	{"LD E, E", "Put value E into E.", 0, 4, NULL}, // 0x5B
-		// 	{"LD E, H", "Put value H into E.", 0, 4, NULL}, // 0x5C
-		// 	{"LD E, L", "Put value L into E.", 0, 4, NULL}, // 0x5D
-		// 	{"LD E, (HL)", "Put value (HL) into E.", 0, 8, NULL}, // 0x5E
-		// 	{"LD E, A", "Put value A into E.", 0, 4, NULL}, // 0x5F
-		// 	{"LD H, B", "Put value B into H.", 0, 4, NULL}, // 0x60
-		// 	{"LD H, C", "Put value C into H.", 0, 4, NULL}, // 0x61
-		// 	{"LD H, D", "Put value D into H.", 0, 4, NULL}, // 0x62
-		// 	{"LD H, E", "Put value E into H.", 0, 4, NULL}, // 0x63
-		// 	{"LD H, H", "Put value H into H.", 0, 4, NULL}, // 0x64
-		// 	{"LD H, L", "Put value L into H.", 0, 4, NULL}, // 0x65
-		// 	{"LD H, (HL)", "Put value (HL) into H.", 0, 8, NULL}, // 0x66
-		// 	{"LD H, A", "Put value A into A.", 0, 4, NULL}, // 0x67
-		// 	{"LD L, B", "Put value B into L.", 0, 4, NULL}, // 0x68
-		// 	{"LD L, C", "Put value C into L.", 0, 4, NULL}, // 0x69
-		// 	{"LD L, D", "Put value D into L.", 0, 4, NULL}, // 0x6A
-		// 	{"LD L, E", "Put value E into L.", 0, 4, NULL}, // 0x6B
-		// 	{"LD L, H", "Put value H into L.", 0, 4, NULL}, // 0x6C
-		// 	{"LD L, L", "Put value L into L.", 0, 4, NULL}, // 0x6D
-		// 	{"LD L, (HL)", "Put value (HL) into L.", 0, 8, NULL}, // 0x6E
-		// 	{"LD L, A", "Put value A into L.", 0, 4, NULL}, // 0x6F
-		// 	{"LD (HL), B", "Put value B into (HL).", 0, 8, NULL}, // 0x70
-		// 	{"LD (HL), C", "Put value C into (HL).", 0, 8, NULL}, // 0x71
-		// 	{"LD (HL), D", "Put value D into (HL).", 0, 8, NULL}, // 0x72
-		// 	{"LD (HL), E", "Put value E into (HL).", 0, 8, NULL}, // 0x73
-		// 	{"LD (HL), H", "Put value H into (HL).", 0, 8, NULL}, // 0x74
-		// 	{"LD (HL), L", "Put value L into (HL).", 0, 8, NULL}, // 0x75
+		void ld_de_nn(WORD op) { registers->de.w = op; }
+		void ld_de_a(WORD) { mmu->writeByte(registers->de.w, registers->af.b.b1); }
+		void inc_de(WORD) { registers->de.w++; }
+		void inc_d(WORD) { registers->de.b.b1 = increment(registers->de.b.b1); }
+		void dec_d(WORD) { registers->de.b.b1 = decrement(registers->de.b.b1); }
+		void ld_d_n(WORD op) { registers->de.b.b1 = (BYTE)op; }
+		void rla(WORD) {
+			flagClear(*registers, flag_n | flag_z | flag_h);
+			bool carry = flagCarry(*registers);
+
+			if (registers->af.b.b1 & 0x80) {
+				flagSet(*registers, flag_c);
+			} else {
+				flagClear(*registers, flag_c);
+			}
+
+			registers->af.b.b1 <<= 1;
+			registers->af.b.b1 += (carry?1:0);
+		}
+		void jr_n(WORD op) { registers->pc += (SIGNED_BYTE)op; }
+		void add_hl_de(WORD) { addWord(registers->hl.w, registers->de.w); }
+		void ld_a_de(WORD) {registers->af.b.b1 = mmu->readByte(registers->de.w); }
+		void dec_de(WORD) { registers->de.w--; }
+		void inc_e(WORD) { registers->de.b.b2 = increment(registers->de.b.b2); }
+		void dec_e(WORD) { registers->de.b.b2 = decrememt(registers->de.b.b2); }
+		void ld_e_n(WORD op) { registers->de.b.b2 = (BYTE)op; }
+		void rra(WORD) { 
+			flagClear(*registers, flag_n | flag_h | flag_z);
+			bool carry = flagCarry(*registers);
+
+			if (registers->af.b.b1 & 0x01) {
+				flagSet(*registers, flag_c);
+			} else {
+				flagClear(*registers, flag_c);
+			}
+
+			registers->af.b.b1 >>= 1;
+			registers->af.b.b1 += (carry?1:0);
+		}
+		void jr_nz_n(WORD op) {
+			if (!flagZero(*registers)) {
+				registers->pc += (SIGNED_BYTE)op;
+				clock->updateClocks(4);
+			}
+		}
+		void ld_hl_nn(WORD op) {registers->hl.w = op; }
+		void ldi_hl_a(WORD) { mmu->writeByte(registers->hl.w++, registers->af.b.b1); }
+		void inc_hl(WORD) { registers->hl.w++; }
+		void inc_h(WORD) { registers->hl.b.b1 = increment(registers->hl.b.b1); }
+		void dec_h(WORD) { registers->hl.b.b1 = decrement(registers->hl.b.b1); }
+		void ld_h_n(WORD op) { registers->hl.b.b1 = (BYTE)op; }
+		void daa(WORD) {
+			BYTE a = registers->af.b.b1;
+
+			if (flagNegative(*registers)) {
+				if (flagHalf(*registers)) {
+					a = 0xFF & (a - 0x06);
+				}
+				if (flagCarry(*registers)) {
+					a -= 0x60;
+				}
+			} else {
+				if (flagHalf(*registers) || (a & 0xF) > 9) {
+					a += 0x06;
+				}
+				if (flagCarry(*registers) || (a > 0x9F)) {
+					a += 0x60;
+				}
+			}
+
+			registers->af.b.b1 = a;
+			flagClear(*registers, flag_h);
+
+			if (a) {
+				flagClear(*registers, flag_z);
+			} else {
+				flagSet(*registers, flag_z);
+			}
+
+			if (a >= 0x100) {
+				flagSet(*registers, flag_c);
+			}
+		}
+		void jr_z_n(WORD op) {
+			if (flagZero(*registers)) {
+				registers->pc += (SIGNED_BYTE)op;
+				clock->updateClocks(4);
+			}
+		}
+		void add_hl_hl(WORD) { addWord(registers->hl.w, registers->hl.w); }
+		void ldi_a_hl(WORD) { registers->af.b.b1 = mmu->readByte(registers->hl.w++); }
+		void dec_hl(WORD) { registers->hl.w--; }
+		void inc_l(WORD) { registers->hl.b.b2 = increment(registers->hl.b.b2); }
+		void dec_l(WORD) { registers->hl.b.b2 = decrement(registers->hl.b.b2); }
+		void ld_l_n(WORD op) { registers->hl.b.b2 = (BYTE)op; }
+		void cpl(WORD) { flagSet(*registers, flag_h|flag_n); registers->af.b.b1 = ~registers->af.b.b1; }
+		void jr_nc_n(WORD op) {
+			if (!flagCarry(*registers)) {
+				registers->pc = (SIGNED_BYTE)op;
+				mmu->updateClocks(4);
+			}
+		}
+		void ld_sp_nn(WORD op) { registers->sp = op; }
+		void ldd_hl_a(WORD) { mmu->writeByte(registers->hl.w--, registers->af.b.b1); }
+		void inc_sp(WORD) { registers->sp++; }
+		void inc_hl(WORD) { mmu->writeByte(registers->hl.w, increment(mmu->readByte(registers->hl.w))); }
+		void dec_hl(WORD) { mmu->writeByte(registers->hl.w, decrement(mmu->readByte(registers->hl.w))); }
+		void ld_hl_n(WORD op) { mmu->writeByte(registers->hl.w, (BYTE)op); }
+		void scf(WORD) { flagSet(*registers, flag_c); flagClear(*registers, flag_n|flag_h); }
+		void jr_c_n(WORD op) {
+			if (flagCarry(*registers)) {
+				registers->pc = (SIGNED_BYTE)op;
+				mmu->updateClocks(4);
+			}
+		}
+		void add_hl_sp(WORD) { addWord(registers->hl.w, registers->sp); }
+		void ldd_a_hl(WORD) { registers->af.b.b1 = mmu->readByte(registers->hl.w--); }
+		void dec_sp(WORD) { registers->sp--;}
+		void inc_a(WORD) { registers->af.b.b1 = increment(registers->af.b.b1); }
+		void dec_a(WORD) { registers->af.b.b1 = decrement(registers->af.b.b1); }
+		void ld_a_n(WORD op) { registers->af.b.b1 = (BYTE)op; }
+		void ccf(WORD) {
+			flagClear(*registers, flag_n, flag_h);
+			if(flagCarry(*registers)) flagClear(*registers, flag_c);
+			else flagSet(*registers, flag_c);
+		}
+		void ld_b_b(WORD) { nop(NULL); }
+		void ld_b_c(WORD) { registers->bc.b.b1 = registers->bc.b.b2; }
+		void ld_b_d(WORD) { registers->bc.b.b1 = registers->de.b.b1; }
+		void ld_b_e(WORD) { registers->bc.b.b1 = registers->de.b.b2; }
+		void ld_b_h(WORD) { registers->bc.b.b1 = registers->hl.b.b1 }
+		void ld_b_l(WORD) { registers->bc.b.b1 = registers->hl.b.b2; }
+		void ld_b_hl(WORD) { registers->bc.b.b1 = mmu->readByte(registers->hl.w); }
+		void ld_b_a(WORD) { registers->bc.b.b1 = registers->af.b.b1; }
+		void ld_c_b(WORD) { registers->bc.b.b2 = registers->bc.b.b1; }
+		void ld_c_c(WORD) { nop(NULL); }
+		void ld_c_d(WORD) { registers->bc.b.b2 = registers->de.b.b1; }
+		void ld_c_e(WORD) { registers->bc.b.b2 = registers->de.b.b2; }
+		void ld_c_h(WORD) { registers->bc.b.b2 = registers->hl.b.b1 }
+		void ld_c_l(WORD) { registers->bc.b.b2 = registers->hl.b.b2; }
+		void ld_c_hl(WORD) { registers->bc.b.b2 = mmu->readByte(registers->hl.w); }
+		void ld_c_a(WORD) { registers->bc.b.b2 = registers->af.b.b1; }
+		void ld_d_b(WORD) { registers->de.b.b1 = registers->bc.b.b1; }
+		void ld_d_c(WORD) { registers->de.b.b1 = registers->bc.b.b2; }
+		void ld_d_d(WORD) { nop(NULL); }
+		void ld_d_e(WORD) { registers->de.b.b1 = registers->de.b.b2; }
+		void ld_d_h(WORD) { registers->de.b.b1 = registers->hl.b.b1 }
+		void ld_d_l(WORD) { registers->de.b.b1 = registers->hl.b.b2; }
+		void ld_d_hl(WORD) { registers->de.b.b1 = mmu->readByte(registers->hl.w); }
+		void ld_d_a(WORD) { registers->de.b.b1 = registers->af.b.b1; }
+		void ld_e_b(WORD) { registers->de.b.b2 = registers->bc.b.b1; }
+		void ld_e_c(WORD) { registers->de.b.b2 = registers->bc.b.b2; }
+		void ld_e_d(WORD) { registers->de.b.b2 = registers->de.b.b1; }
+		void ld_e_e(WORD) { nop(NULL); }
+		void ld_e_h(WORD) { registers->de.b.b2 = registers->hl.b.b1 }
+		void ld_e_l(WORD) { registers->de.b.b2 = registers->hl.b.b2; }
+		void ld_e_hl(WORD) { registers->de.b.b2 = mmu->readByte(registers->hl.w); }
+		void ld_e_a(WORD) { registers->de.b.b2 = registers->af.b.b1; }
+		void ld_h_b(WORD) { registers->hl.b.b1 = registers->bc.b.b1; }
+		void ld_h_c(WORD) { registers->hl.b.b1 = registers->bc.b.b2; }
+		void ld_h_d(WORD) { registers->hl.b.b1 = registers->de.b.b1; }
+		void ld_h_e(WORD) { registers->hl.b.b1 = registers->de.b.b2; }
+		void ld_h_h(WORD) { nop(NULL); }
+		void ld_h_l(WORD) { registers->hl.b.b1 = registers->hl.b.b2; }
+		void ld_h_hl(WORD) { registers->hl.b.b1 = mmu->readByte(registers->hl.w); }
+		void ld_h_a(WORD) { registers->hl.b.b1 = registers->af.b.b1; }
+		void ld_l_b(WORD) { registers->hl.b.b2 = registers->bc.b.b1; }
+		void ld_l_c(WORD) { registers->hl.b.b2 = registers->bc.b.b2; }
+		void ld_l_d(WORD) { registers->hl.b.b2 = registers->de.b.b1; }
+		void ld_l_e(WORD) { registers->hl.b.b2 = registers->de.b.b2; }
+		void ld_l_h(WORD) { registers->hl.b.b2 = registers->hl.b.b1 }
+		void ld_l_l(WORD) { nop(NULL); }
+		void ld_l_hl(WORD) { registers->hl.b.b2 = mmu->readByte(registers->hl.w); }
+		void ld_l_a(WORD) { registers->hl.b.b2 = registers->af.b.b1; }
+		void ld_hl_b(WORD) { mmu->writeByte(registers->hl.w, registers->bc.b.b1); }
+		void ld_hl_c(WORD) { mmu->writeByte(registers->hl.w, registers->bc.b.b2); }
+		void ld_hl_d(WORD) { mmu->writeByte(registers->hl.w, registers->de.b.b1); }
+		void ld_hl_e(WORD) { mmu->writeByte(registers->hl.w, registers->de.b.b2); }
+		void ld_hl_h(WORD) { mmu->writeByte(registers->hl.w, registers->hl.b.b1); }
+		void ld_hl_l(WORD) { mmu->writeByte(registers->hl.w, registers->hl.b.b2); }
+		//void halt(WORD) { }
 		// 	{"HALT", "Power down CPU until an interrupt occurs.", 0, 4, NULL}, // 0x76
-		// 	{"LD (HL), A", "Put value A into (HL).", 0, 8, NULL}, // 0x77
-		// 	{"LD A, B", "Put value B into A.", 0, 4, NULL}, // 0x78
-		// 	{"LD A, C", "Put value C into A.", 0, 4, NULL}, // 0x79
-		// 	{"LD A, D", "Put value D into A.", 0, 4, NULL}, // 0x7A
-		// 	{"LD A, E", "Put value E into A.", 0, 4, NULL}, // 0x7B
-		// 	{"LD A, H", "Put value H into A.", 0, 4, NULL}, // 0x7C
-		// 	{"LD A, L", "Put value L into A.", 0, 4, NULL}, // 0x7D
-		// 	{"LD A, (HL)", "Put value (HL) into A", 0, 8, NULL}, // 0x7E
-		// 	{"LD A, A", "Put value A into A", 0, 4, NULL}, // 0x7F
-		void add_b(WORD n) { add(registers->bc.b.b1); }
-		void add_c(WORD n) { add(registers->bc.b.b2); }
-		void add_d(WORD n) { add(registers->de.b.b1); }
-		void add_e(WORD n) { add(registers->de.b.b2); }
-		void add_h(WORD n) { add(registers->hl.b.b1); }
-		void add_l(WORD n) { add(registers->hl.b.b2); }
-		void add_hl(WORD n) { add(registers->hl.w); }
-		void add_a(WORD n) { add(registers->af.b.b1); }
-		void adc_b(WORD n) { adc(registers->bc.b.b1); }
-		void adc_c(WORD n) { adc(registers->bc.b.b2); }
-		void adc_d(WORD n) { adc(registers->de.b.b1); }
-		void adc_e(WORD n) { adc(registers->de.b.b2); }
-		void adc_h(WORD n) { adc(registers->hl.b.b1); }
-		void adc_l(WORD n) { adc(registers->hl.b.b2); }
-		void adc_hl(WORD n) { adc(registers->hl.w); }
-		void adc_a(WORD n) { adc(registers->af.b.b1); }
-		void sub_b(WORD n) { subtract(registers->bc.b.b1); }
-		void sub_c(WORD n) { subtract(registers->bc.b.b2); }
-		void sub_d(WORD n) { subtract(registers->de.b.b1); }
-		void sub_e(WORD n) { subtract(registers->de.b.b2); }
-		void sub_h(WORD n) { subtract(registers->hl.b.b1); }
-		void sub_l(WORD n) { subtract(registers->hl.b.b2); }
-		void sub_hl(WORD n) { subtract(registers->hl.w); }
-		void sub_a(WORD n) { subtract(registers->af.b.b1); }
-		void sbc_b(WORD n) { sbc(registers->bc.b.b1); }
-		void sbc_c(WORD n) { sbc(registers->bc.b.b2); }
-		void sbc_d(WORD n) { sbc(registers->de.b.b1); }
-		void sbc_e(WORD n) { sbc(registers->de.b.b2); }
-		void sbc_h(WORD n) { sbc(registers->hl.b.b1); }
-		void sbc_l(WORD n) { sbc(registers->hl.b.b2); }
-		void sbc_hl(WORD n) { sbc(registers->hl.w); }
-		void sbc_a(WORD n) { sbc(registers->af.b.b1); }
-		void and_b(WORD n) { andd(registers->bc.b.b1); }
-		void and_c(WORD n) { andd(registers->bc.b.b2); }
-		void and_d(WORD n) { andd(registers->de.b.b1); }
-		void and_e(WORD n) { andd(registers->de.b.b2); }
-		void and_h(WORD n) { andd(registers->hl.b.b1); }
-		void and_l(WORD n) { andd(registers->hl.b.b2); }
-		void and_hl(WORD n) { andd(registers->hl.w); }
-		void and_a(WORD n) { andd(registers->af.b.b1); }
-		// 	{"XOR B", "Logical exclusive OR B with register A, result in A.", 0, 4, NULL}, // 0xA8
-		// 	{"XOR C", "Logical exclusive OR C with register A, result in A.", 0, 4, NULL}, // 0xA9
-		// 	{"XOR D", "Logical exclusive OR D with register A, result in A.", 0, 4, NULL}, // 0xAA
-		// 	{"XOR E", "Logical exclusive OR E with register A, result in A.", 0, 4, NULL}, // 0xAB
-		// 	{"XOR H", "Logical exclusive OR H with register A, result in A.", 0, 4, NULL}, // 0xAC
-		// 	{"XOR L", "Logical exclusive OR L with register A, result in A.", 0, 4, NULL}, // 0xAD
-		// 	{"XOR (HL)", "Logical exclusive OR (HL) with register A, result in A.", 0, 8, NULL}, // 0xAE
-		// 	{"XOR A", "Logical exclusive OR A with register A, result in A.", 0, 4, NULL}, // 0xAF
-		// 	{"OR B", "Logical OR B with register A, result in A.", 0, 4, NULL}, // 0xB0
-		// 	{"OR C", "Logical OR C with register A, result in A.", 0, 4, NULL}, // 0xB1
-		// 	{"OR D", "Logical OR D with register A, result in A.", 0, 4, NULL}, // 0xB2
-		// 	{"OR E", "Logical OR E with register A, result in A.", 0, 4, NULL}, // 0xB3
-		// 	{"OR H", "Logical OR H with register A, result in A.", 0, 4, NULL}, // 0xB4
-		// 	{"OR L", "Logical OR L with register A, result in A.", 0, 4, NULL}, // 0xB5
-		// 	{"OR (HL)", "Logical OR (HL) with register A, result in A.", 0, 8, NULL}, // 0xB6
-		// 	{"OR A", "Logical OR A with register A, result in A.", 0, 4, NULL}, // 0xB7
-		// 	{"CP B", "Compare A with B. A - B but results are thrown away.", 0, 4, NULL}, // 0xB8
-		// 	{"CP C", "Compare A with C. A - C but results are thrown away.", 0, 4, NULL}, // 0xB9
-		// 	{"CP D", "Compare A with D. A - D but results are thrown away.", 0, 4, NULL}, // 0xBA
-		// 	{"CP E", "Compare A with E. A - E but results are thrown away.", 0, 4, NULL}, // 0xBB
-		// 	{"CP H", "Compare A with H. A - H but results are thrown away.", 0, 4, NULL}, // 0xBC
-		// 	{"CP L", "Compare A with L. A - L but results are thrown away.", 0, 4, NULL}, // 0xBD
-		// 	{"CP (HL)", "Compare A with (HL). A - (HL) but results are thrown away.", 0, 8, NULL}, // 0xBE
-		// 	{"CP A", "Compare A with A. A - A but results are thrown away.", 0, 4, NULL}, // 0xBF
+		void ld_hl_a(WORD) { mmu->writeByte(registers->hl.w, registers->af.b.b1); }
+		void ld_a_b(WORD) { registers->af.b.b1 = registers->bc.b.b1; }
+		void ld_a_c(WORD) { registers->af.b.b1 = registers->bc.b.b2; }
+		void ld_a_d(WORD) { registers->af.b.b1 = registers->de.b.b1; }
+		void ld_a_e(WORD) { registers->af.b.b1 = registers->de.b.b2; }
+		void ld_a_h(WORD) { registers->af.b.b1 = registers->hl.b.b1; }
+		void ld_a_l(WORD) { registers->af.b.b1 = registers->hl.b.b2; }
+		void ld_a_hl(WORD) { registers->af.b.b1 = mmu->readByte(registers->hl.w); }
+		void ld_a_a(WORD) { nop(NULL); }
+		void add_b(WORD) { add(registers->af.b.b1, registers->bc.b.b1); }
+		void add_c(WORD) { add(registers->af.b.b1, registers->bc.b.b2); }
+		void add_d(WORD) { add(registers->af.b.b1, registers->de.b.b1); }
+		void add_e(WORD) { add(registers->af.b.b1, registers->de.b.b2); }
+		void add_h(WORD) { add(registers->af.b.b1, registers->hl.b.b1); }
+		void add_l(WORD) { add(registers->af.b.b1, registers->hl.b.b2); }
+		void add_hl(WORD) { add(registers->af.b.b1, registers->hl.w); }
+		void add_a(WORD) { add(registers->af.b.b1, registers->af.b.b1); }
+		void adc_b(WORD) { adc(registers->bc.b.b1); }
+		void adc_c(WORD) { adc(registers->bc.b.b2); }
+		void adc_d(WORD) { adc(registers->de.b.b1); }
+		void adc_e(WORD) { adc(registers->de.b.b2); }
+		void adc_h(WORD) { adc(registers->hl.b.b1); }
+		void adc_l(WORD) { adc(registers->hl.b.b2); }
+		void adc_hl(WORD) { adc(registers->hl.w); }
+		void adc_a(WORD) { adc(registers->af.b.b1); }
+		void sub_b(WORD) { subtract(registers->bc.b.b1); }
+		void sub_c(WORD) { subtract(registers->bc.b.b2); }
+		void sub_d(WORD) { subtract(registers->de.b.b1); }
+		void sub_e(WORD) { subtract(registers->de.b.b2); }
+		void sub_h(WORD) { subtract(registers->hl.b.b1); }
+		void sub_l(WORD) { subtract(registers->hl.b.b2); }
+		void sub_hl(WORD) { subtract(registers->hl.w); }
+		void sub_a(WORD) { subtract(registers->af.b.b1); }
+		void sbc_b(WORD) { sbc(registers->bc.b.b1); }
+		void sbc_c(WORD) { sbc(registers->bc.b.b2); }
+		void sbc_d(WORD) { sbc(registers->de.b.b1); }
+		void sbc_e(WORD) { sbc(registers->de.b.b2); }
+		void sbc_h(WORD) { sbc(registers->hl.b.b1); }
+		void sbc_l(WORD) { sbc(registers->hl.b.b2); }
+		void sbc_hl(WORD) { sbc(registers->hl.w); }
+		void sbc_a(WORD) { sbc(registers->af.b.b1); }
+		void and_b(WORD) { andd(registers->bc.b.b1); }
+		void and_c(WORD) { andd(registers->bc.b.b2); }
+		void and_d(WORD) { andd(registers->de.b.b1); }
+		void and_e(WORD) { andd(registers->de.b.b2); }
+		void and_h(WORD) { andd(registers->hl.b.b1); }
+		void and_l(WORD) { andd(registers->hl.b.b2); }
+		void and_hl(WORD) { andd(registers->hl.w); }
+		void and_a(WORD) { andd(registers->af.b.b1); }
+		void xor_b(WORD) { xorr(registers->bc.b.b1); }
+		void xor_c(WORD) { xorr(registers->bc.b.b2); }
+		void xor_d(WORD) { xorr(registers->de.b.b1); }
+		void xor_e(WORD) { xorr(registers->de.b.b2); }
+		void xor_h(WORD) { xorr(registers->hl.b.b1); }
+		void xor_l(WORD) { xorr(registers->hl.b.b2); }
+		void xor_hl(WORD) { xorr(registers->hl.w); }
+		void xor_a(WORD) { xorr(registers->af.b.b1); }
+		void or_b(WORD) { orr(registers->bc.b.b1); }
+		void or_c(WORD) { orr(registers->bc.b.b2); }
+		void or_d(WORD) { orr(registers->de.b.b1); }
+		void or_e(WORD) { orr(registers->de.b.b2); }
+		void or_h(WORD) { orr(registers->hl.b.b1); }
+		void or_l(WORD) { orr(registers->hl.b.b2); }
+		void or_hl(WORD) { orr(registers->hl.w); }
+		void or_a(WORD) { orr(registers->af.b.b1); }
+		void cp_b(WORD) { cp(registers->bc.b.b1); }
+		void cp_c(WORD) { cp(registers->bc.b.b2); }
+		void cp_d(WORD) { cp(registers->de.b.b1); }
+		void cp_e(WORD) { cp(registers->de.b.b2); }
+		void cp_h(WORD) { cp(registers->hl.b.b1); }
+		void cp_l(WORD) { cp(registers->hl.b.b2); }
+		void cp_hl(WORD) { cp(registers->hl.w); }
+		void cp_a(WORD) { cp(registers->af.b.b1); }
 		// 	{"RET NZ", "Return if Z flag is reset.", 0, 8, NULL}, // 0xC0
 		// 	{"POP (BC)", "Pop two bytes off stack into register pair (BC). Increment (SP) twice.", 0, 12, NULL}, // 0xC1
 		// 	{"JP NZ, nn", "Jump to address nn if Z flag is reset.", 1, 12, NULL}, // 0xC2
@@ -290,7 +387,7 @@ class CPU
 		// 	{"RST 18H", "Push present address onto stack. Jump to address $0018.", 0, 32, NULL}, // 0xDF
 		// 	{"LDH (n), A", "Put A into memory address $FF00+n.", 1, 12, NULL}, // 0xE0
 		// 	{"POP (HL)", "Pop two bytes off stack into register pair (HL). Increment (SP) twice.", 0, 16, NULL}, // 0xE1
-		// 	{"LD (C), A", "Put A into address $FF00 + register C", 0, 8, NULL}, // 0xE2
+		void ld_cc_a(WORD) { mmu->writeByte(registers->bc.b.b2 + 0xff00, registers->af.b.b1); }
 		// 	{"Undefined 0xE3", "Undefined.", 0, 0, NULL}, // 0xE3
 		// 	{"Undefined 0xE4", "Undefined.", 0, 0, NULL}, // 0xE4
 		// 	{"PUSH (HL)", "Push register pair (HL) onto stack. Decrement (SP) twice.", 0, 16, NULL}, // 0xE5
@@ -298,7 +395,7 @@ class CPU
 		// 	{"RST 20H", "Push present address onto stack. Jump to address $0020.", 0, 32, NULL}, // 0xE7
 		// 	{"ADD # to (SP)", "Add # to (SP).", 1, 16, NULL}, // 0xE8
 		// 	{"JP (HL)", "Jump to address contained in (HL).", 0, 4, NULL}, // 0xE9
-		// 	{"LD (nn), A", "Put value A into (nn).", 2, 16, NULL}, // 0xEA
+		void ld_nn_a(WORD op) { mmu->writeByte(op, registers->af.b.b1); }
 		// 	{"Undefined 0xEB", "Undefined.", 0, 0, NULL}, // 0xEB
 		// 	{"Undefined 0xEC", "Undefined.", 0, 0, NULL}, // 0xEC
 		// 	{"Undefined 0xED", "Undefined.", 0, 0, NULL}, // 0xED
@@ -306,7 +403,7 @@ class CPU
 		// 	{"RST 28H", "Push present address onto stack. Jump to address $0028.", 0, 32, NULL}, // 0xEF
 		// 	{"LDH A, (n)", "Put memory address $FF00+n into A.", 1, 12, NULL}, // 0xF0
 		// 	{"POP (AF)", "Pop two bytes off stack into register pair (AF). Increment (SP) twice.", 0, 12, NULL}, // 0xF1
-		// 	{"LD A, (C)", "Put value at address $FF00 + register C into A.", 0, 8, NULL}, // 0xF2
+		void ld_a_c(WORD) { registers->af.b.b1 = mmu->readByte(registers->bc.b.b2 + 0xff00); }
 		// 	{"DI", "Disables interrupts after instruction after DI is executed.", 0, 4, NULL}, // 0xF3
 		// 	{"Undefined 0xF4", "Undefined.", 0, 0, NULL}, // 0xF4
 		// 	{"PUSH (AF)", "Push register pair (AF) onto stack. Decrement (SP) twice.", 0, 16, NULL}, // 0xF5
@@ -314,7 +411,7 @@ class CPU
 		// 	{"RST 30H", "Push present address onto stack. Jump to address $0030.", 0, 32, NULL}, // 0xF7
 		// 	{"LDHL (SP), n", "Put (SP)+n effective address into (HL).", 1, 12, NULL}, // 0xF8
 		// 	{"LD (SP), (HL)", "Put (HL) into (SP).", 0, 8, NULL}, // 0xF9
-		// 	{"LD A, (nn)", "Put value (nn) into A.", 2, 16, NULL}, // 0xFA
+		void ld_a_nn(WORD op) { registers->af.b.b1 = mmu->readByte(op); }
 		// 	{"EI", "Enable interrupts after instruction after EI is executed.", 0, 4, NULL}, // 0xFB
 		// 	{"Undefined 0xFC", "Undefined.", 0, 0, NULL}, // 0xFC
 		// 	{"Undefined 0xFD", "Undefined.", 0, 0, NULL}, // 0xFD

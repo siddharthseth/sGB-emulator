@@ -102,7 +102,6 @@ void CPU::add(BYTE& dest, BYTE value)
 	flagClear(*registers, flag_n);
 	// use int incase of carry, if upper 8 bits are set
 	unsigned int sum = dest + value;
-	dest = (BYTE) sum & 0xff; // only want lower 8 bits
 
 	if(sum & 0xff00) {
 		flagSet(*registers, flag_c);
@@ -121,6 +120,8 @@ void CPU::add(BYTE& dest, BYTE value)
 	} else {
 		flagSet(*registers, flag_z);
 	}
+
+	dest = (BYTE) sum & 0xff; // only want lower 8 bits
 }
 
 void CPU::addWord(WORD& dest, WORD value)
@@ -128,7 +129,6 @@ void CPU::addWord(WORD& dest, WORD value)
 	flagClear(*registers, flag_n);
 
 	unsigned long sum = dest + value;
-	dest = (WORD) sum & 0xffff;
 
 	if(sum & 0xffff0000) {
 		flagSet(*registers, flag_c);
@@ -136,13 +136,164 @@ void CPU::addWord(WORD& dest, WORD value)
 		flagClear(*registers, flag_c);
 	}
 
-	if((dest & 0x00ff) + (value & 0x00ff) > 0x00ff) {
+	if((dest & 0x0fff) + (value & 0x0fff) > 0x0fff) {
+		flagSet(*registers, flag_h);
+	} else {
+		flagClear(*registers, flag_h);
+	}
+
+	dest = (WORD) sum & 0xffff;
+}
+
+void CPU::adc(BYTE value)
+{
+	flagClear(*registers, flag_n);
+
+	unsigned int sum = registers->af.b.b1 + value + (flagCarry(*registers)?1:0);
+
+	if(sum & 0xff00) {
+		flagSet(*registers, flag_c);
+	} else {
+		flagClear(*registers, flag_c);
+	}
+
+	if(sum) {
+		flagClear(*registers, flag_z);
+	} else {
+		flagSet(*registers, flag_z);
+	}
+
+	if((registers->af.b.b1 & 0x0f) + (value & 0x0f) > 0x0f) {
+		flagSet(*registers, flag_h);
+	} else {
+		flagClear(*registers, flag_h);
+	}
+
+	registers->af.b.b1 = (BYTE) sum & 0xff;
+}
+
+void CPU::subtract(BYTE value)
+{
+	flagSet(*registers, flag_n);
+
+	BYTE diff = registers->af.b.b1 - value;
+
+	if(diff) {
+		flagClear(*registers, flag_z);
+	} else {
+		flagSet(*registers, flag_z);
+	}
+
+	if(value > registers->af.b.b1) {
+		flagSet(*registers, flag_c);
+	} else {
+		flagClear(*registers, flag_c);
+	}
+
+	if((value & 0x0f) > (registers->af.b.b1 & 0x0f)) {
+		flagSet(*registers, flag_h);
+	} else {
+		flagClear(*registers, flag_h);
+	}
+
+	registers->af.b.b1 = diff;
+}
+
+void CPU::sbc(BYTE value)
+{
+	flagSet(*registers, flag_n);
+
+	value += (flagCarry(*registers)?1:0);
+	BYTE diff = registers->af.b.b1 - value;
+
+	if(diff) {
+		flagClear(*registers, flag_z);
+	} else {
+		flagSet(*registers, flag_z);
+	}
+
+	if(value > registers->af.b.b1) {
+		flagSet(*registers, flag_c);
+	} else {
+		flagClear(*registers, flag_c);
+	}
+
+	if((value & 0x0f) > (registers->af.b.b1 & 0x0f)) {
+		flagSet(*registers, flag_h);
+	} else {
+		flagClear(*registers, flag_h);
+	}
+
+	registers->af.b.b1 = diff;
+}
+
+void CPU::andd(BYTE value)
+{
+	flagClear(*registers, flag_n);
+	flagSet(*registers, flag_h);
+	flagClear(*registers, flag_c);
+
+	registers->af.b.b1 &= value;
+
+	if(registers->af.b.b1) {
+		flagClear(*registers, flag_z);
+	} else {
+		flagSet(*registers, flag_z);
+	}
+}
+
+void CPU::orr(BYTE value)
+{
+	flagClear(*registers, flag_n);
+	flagClear(*registers, flag_h);
+	flagClear(*registers, flag_c);
+
+	registers->af.b.b1 |= value;
+
+	if(registers->af.b.b1) {
+		flagClear(*registers, flag_z);
+	} else {
+		flagSet(*registers, flag_z);
+	}
+}
+
+void CPU::xorr(BYTE value)
+{
+	flagClear(*registers, flag_n);
+	flagClear(*registers, flag_h);
+	flagClear(*registers, flag_c);
+
+	registers->af.b.b1 ^= value;
+
+	if(registers->af.b.b1) {
+		flagClear(*registers, flag_z);
+	} else {
+		flagSet(*registers, flag_z);
+	}
+}
+
+void CPU::cp(BYTE value)
+{
+	flagSet(*registers, flag_n);
+
+	if(value != registers->af.b.b1) {
+		flagClear(*registers, flag_z);
+	} else {
+		flagSet(*registers, flag_z);
+	}
+
+	if(value > registers->af.b.b1) {
+		flagSet(*registers, flag_c);
+	} else {
+		flagClear(*registers, flag_c);
+	}
+
+	if((value & 0x0f) > (registers->af.b.b1 & 0x0f)) {
 		flagSet(*registers, flag_h);
 	} else {
 		flagClear(*registers, flag_h);
 	}
 }
-
 
 BYTE CPU::increment(BYTE value)
 {
