@@ -97,6 +97,38 @@ void CPU::writeStack(WORD data)
 	mmu->writeWord(registers->sp, data);
 }
 
+WORD CPU::popWordStack()
+{
+	WORD ret = mmu->readWord(registers->sp);
+	registers->sp += 2;
+	return ret;
+}
+
+void CPU::ret_cc() 
+{
+	clock->updateClocks(12);
+	registers->pc = popWordStack();
+}
+
+void CPU::jp_cc(WORD op)
+{
+	registers->pc = op;
+	clock->updateClocks(4);
+}
+
+void CPU::call_cc(WORD op)
+{
+	writeStack(registers->pc);
+	registers->pc = op;
+	clock->updateClocks(12);
+}
+
+void CPU::rst_h(WORD op)
+{
+	writeStack(registers->pc);
+	registers->pc = op;
+}
+
 void CPU::add(BYTE& dest, BYTE value)
 {
 	flagClear(*registers, flag_n);
@@ -229,9 +261,7 @@ void CPU::sbc(BYTE value)
 
 void CPU::andd(BYTE value)
 {
-	flagClear(*registers, flag_n);
-	flagSet(*registers, flag_h);
-	flagClear(*registers, flag_c);
+	flagClear(*registers, flag_n | flag_h | flag_c);
 
 	registers->af.b.b1 &= value;
 
@@ -244,9 +274,7 @@ void CPU::andd(BYTE value)
 
 void CPU::orr(BYTE value)
 {
-	flagClear(*registers, flag_n);
-	flagClear(*registers, flag_h);
-	flagClear(*registers, flag_c);
+	flagClear(*registers, flag_n | flag_h | flag_c);
 
 	registers->af.b.b1 |= value;
 
@@ -259,9 +287,7 @@ void CPU::orr(BYTE value)
 
 void CPU::xorr(BYTE value)
 {
-	flagClear(*registers, flag_n);
-	flagClear(*registers, flag_h);
-	flagClear(*registers, flag_c);
+	flagClear(*registers, flag_n | flag_h | flag_c);
 
 	registers->af.b.b1 ^= value;
 
@@ -337,4 +363,183 @@ BYTE CPU::decrement(BYTE value)
 	}
 
 	return value;
+}
+
+BYTE CPU::rlc(BYTE value)
+{
+	flagClear(*registers, flag_n | flag_h);
+
+	if (value & 0x80) {
+		flagSet(*registers, flag_c);
+	} else {
+		flagClear(*registers, flag_c);
+	}
+
+	value = (value << 1) | (value >> 7);
+
+	if (value) {
+		flagClear(*registers, flag_z);
+	} else {
+		flagSet(*registers, flag_z);
+	}
+
+	return value;
+}
+
+BYTE CPU::rrc(BYTE value)
+{
+	flagClear(*registers, flag_n | flag_h);
+
+	if (value & 0x01) {
+		flagSet(*registers, flag_c);
+	} else {
+		flagClear(*registers, flag_c);
+	}
+
+	value = (value >> 1) | (value << 7);
+
+	if (value) {
+		flagClear(*registers, flag_z);
+	} else {
+		flagSet(*registers, flag_z);
+	}
+
+	return value;
+}
+
+BYTE CPU::rl(BYTE value)
+{
+	flagClear(*registers, flag_n | flag_h);
+
+	if (value & 0x80) {
+		flagSet(*registers, flag_c);
+	} else {
+		flagClear(*registers, flag_c);
+	}
+
+	value = (value << 1) | flagCarry(*registers) ? 1 : 0;
+
+	if (value) {
+		flagClear(*registers, flag_z);
+	} else {
+		flagSet(*registers, flag_z);
+	}
+
+	return value;
+}
+
+BYTE CPU::rr(BYTE value)
+{
+	flagClear(*registers, flag_n | flag_h);
+
+	if (value & 0x01) {
+		flagSet(*registers, flag_c);
+	} else {
+		flagClear(*registers, flag_c);
+	}
+
+	value = (value >> 1) | (value << 7);
+
+	if (value) {
+		flagClear(*registers, flag_z);
+	} else {
+		flagSet(*registers, flag_z);
+	}
+
+	return value;
+}
+
+BYTE CPU::sla(BYTE value)
+{
+	flagClear(*registers, flag_n | flag_h);
+
+	if (value & 0x80) {
+		flagSet(*registers, flag_c);
+	} else {
+		flagClear(*registers, flag_c);
+	}
+
+	value <<= 1;
+
+	if (value) {
+		flagClear(*registers, flag_z);
+	} else {
+		flagSet(*registers, flag_z);
+	}
+
+	return value;
+}
+
+BYTE CPU::sra(BYTE value)
+{
+	flagClear(*registers, flag_n | flag_h);
+
+	if (value & 0x01) {
+		flagSet(*registers, flag_c);
+	} else {
+		flagClear(*registers, flag_c);
+	}
+
+	value = (value >> 1) | (value & 0x80);
+
+	if (value) {
+		flagClear(*registers, flag_z);
+	} else {
+		flagSet(*registers, flag_z);
+	}
+
+	return value;
+}
+
+BYTE CPU::swap(BYTE value)
+{
+	flagClear(*registers, flag_n | flag_h | flag_c);
+
+	value = ((value & 0xf0) >> 4) | ((value & 0xf) << 4);
+
+	if (value) {
+		flagClear(*registers, flag_z);
+	} else {
+		flagSet(*registers, flag_z);
+	}
+
+	return value;
+}
+
+BYTE CPU::srl(BYTE value)
+{
+	flagClear(*registers, flag_n | flag_h);
+
+	if (value & 0x01) {
+		flagSet(*registers, flag_c);
+	} else {
+		flagClear(*registers, flag_c);
+	}
+
+	value >>= 1;
+
+	if (value) {
+		flagClear(*registers, flag_z);
+	} else {
+		flagSet(*registers, flag_z);
+	}
+
+	return value;
+}
+
+void CPU::bit(BYTE check, BYTE value)
+{
+	flagClear(*registers, flag_n);
+	flagSet(*registers, flag_h);
+
+	if (value & check) {
+		flagClear(*registers, flag_z);
+	} else {
+		flagSet(*registers, flag_z);
+	}
+}
+
+BYTE CPU::set(BYTE check, BYTE value)
+{
+	return value | check;
 }
