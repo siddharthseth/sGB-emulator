@@ -47,6 +47,8 @@ class MMU
 		void writeByte(WORD, BYTE);
 		void writeWord(WORD, WORD);
 		void loadGame(std::ifstream&, BYTE);
+		BYTE getTimerFreq();
+		void dividerRegister(int);
 
 	private:
 		BYTE cartridge[0x8000];

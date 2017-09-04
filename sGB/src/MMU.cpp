@@ -6,7 +6,8 @@ using namespace std;
 
 MMU::MMU():
 currROMBank(1),
-currRAMBank(0)
+currRAMBank(0),
+dividerCounter(0)
 {
 }
 
@@ -139,6 +140,8 @@ void MMU::writeWord(WORD address, WORD data)
 void MMU::reset()
 {
 	cout << "Currently reseting all memory..." << endl;
+	dividerCounter = 0;
+
 	// reset all memory to zero
 	memset(cartridge, 0, sizeof(cartridge));
 	memset(vram, 0, sizeof(vram));
@@ -218,5 +221,20 @@ void MMU::loadGame(ifstream& romFile, BYTE romTypeVal)
 		case ROM_HUDSON_HUC3:
 		case ROM_HUDSON_HUC1:
 			break;
+	}
+}
+
+BYTE MMU::getTimerFreq()
+{
+	return readByte(TMC) & 0x03;
+}
+
+void MMU::dividerRegisters(int cycles)
+{
+	dividerCounter += cycles;
+	if (dividerCounter >= 255)
+	{
+		dividerCounter = 0;
+		
 	}
 }
